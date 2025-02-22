@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<!-- Previous head section remains the same -->
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reeltor Support Chatbot</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* Previous styles remain the same */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+        .message-animation {
+            animation: fadeIn 0.3s ease-out forwards;
+        }
+        .message-content {
+            font-family: 'Inter', sans-serif;
+            line-height: 1.5;
+        }
+        .support-option {
+            transition: all 0.2s ease;
+        }
+        .support-option:hover {
+            background-color: rgba(239, 68, 68, 0.1);
+            transform: translateX(5px);
+        }
+        .typing-indicator {
+            animation: pulse 1s infinite;
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-gray-50 to-gray-100 min-h-screen flex justify-center items-center p-4">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        function Chatbot() {
+            const [messages, setMessages] = React.useState([]);
+            const [inputMessage, setInputMessage] = React.useState('');
+            const [isLoading, setIsLoading] = React.useState(false);
+            const messagesEndRef = React.useRef(null);
+
+            const scrollToBottom = () => {
+                messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+            };
+
+            React.useEffect(() => {
+                scrollToBottom();
+            }, [messages]);
+
+            const formatBotResponse = (response) => {
+                if (response.includes('1.')) {
+                    const [title, ...options] = response.split(/(?=\d\.)/);
+                    return (
+                        <div className="space-y-4">
+                            <div className="font-semibold text-gray-800">
+                                {title.trim()}
+                            </div>
+                            <div className="space-y-3">
+                                {options.map((option, index) => {
+                                    const [number, text] = option.split('.').map(s => s.trim());
+                                    const icons = {
+                                        'Verify connection': 'fa-wifi',
+                                        'Clear app data': 'fa-broom',
+                                        'Check storage': 'fa-hard-drive',
+                                        'Update app': 'fa-arrow-up-right-dots',
+                                        'Restart device': 'fa-power-off'
+                                    };
+                                    return (
+                                        <div key={index} 
+                                            className="support-option flex items-center space-x-3 p-3 rounded-xl cursor-pointer hover:bg-red-50 border border-transparent hover:border-red-200">
+                                            <span className="text-gray-700 font-medium">{number}. {text}</span>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    );
+                }
+                return response;
+            };
+
+            const handleSubmit = async (e) => {
+                e.preventDefault();
+                if (!inputMessage.trim() || isLoading) return;
+
+                const userMessage = inputMessage.trim();
+                setMessages(prev => [...prev, { type: 'user', text: userMessage }]);
+                setInputMessage('');
+                setIsLoading(true);
+
+                try {
+                    const response = await fetch('/api/chat', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ message: userMessage }),
+                    });
+
+                    const data = await response.json();
+
+                    if (response.ok && data.response) {
+                        setMessages(prev => [...prev, { type: 'bot', text: data.response }]);
+                    } else {
+                        setMessages(prev => [...prev, { 
+                            type: 'bot', 
+                            text: 'I encountered an error processing your request. Please try again later.'
+                        }]);
+                    }
+                } catch (error) {
+                    console.error('Fetch error:', error);
+                    setMessages(prev => [...prev, { 
+                        type: 'bot', 
+                        text: 'Sorry, there was a problem connecting to the server. Please try again.'
+                    }]);
+                } finally {
+                    setIsLoading(false);
+                }
+            };
+
+            return (
+                <div className="bg-white shadow-2xl rounded-2xl w-full max-w-lg border border-gray-200">
+                    {/* Header */}
+                    <div className="p-4 border-b border-gray-200 flex items-center justify-between bg-gradient-to-r from-red-500 to-red-600 rounded-t-2xl">
+                        <div className="flex items-center space-x-3">
+                            <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-md">
+                                <i className="fas fa-robot text-red-500 text-xl"></i>
+                            </div>
+                            <div>
+                                <h2 className="text-xl font-bold text-white">Reeltor Support</h2>
+                                <div className="flex items-center text-red-100 text-sm">
+                                    <i className="fas fa-circle text-xs text-green-400 mr-1"></i>
+                                    Online
+                                </div>
+                            </div>
+                        </div>
+                        <button className="text-white hover:text-red-100 transition-colors">
+                            <i className="fas fa-ellipsis-v"></i>
+                        </button>
+                    </div>
+
+                    {/* Messages */}
+                    <div className="h-[500px] overflow-y-auto p-4 space-y-4 custom-scrollbar">
+                        {messages.length === 0 && (
+                            <div className="flex flex-col items-center justify-center h-full text-gray-500 space-y-4">
+                                <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center">
+                                    <i className="fas fa-comments text-red-500 text-2xl"></i>
+                                </div>
+                                <p className="text-center">How can I help you today?</p>
+                            </div>
+                        )}
+                        {messages.map((msg, index) => (
+                            <div key={index} className={`message-animation flex ${msg.type === 'user' ? 'justify-end' : 'justify-start'}`}>
+                                {msg.type === 'bot' && (
+                                    <div className="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center mr-2">
+                                        <i className="fas fa-robot text-red-500"></i>
+                                    </div>
+                                )}
+                                <div className={`max-w-[80%] px-4 py-3 rounded-2xl shadow-sm ${
+                                    msg.type === 'user' 
+                                        ? 'bg-red-500 text-white' 
+                                        : 'bg-gray-100'
+                                }`}>
+                                    <div className="message-content">
+                                        {msg.type === 'bot' ? formatBotResponse(msg.text) : msg.text}
+                                    </div>
+                                </div>
+                                {msg.type === 'user' && (
+                                    <div className="w-8 h-8 bg-red-600 rounded-full flex items-center justify-center ml-2">
+                                        <i className="fas fa-user text-white"></i>
+                                    </div>
+                                )}
+                            </div>
+                        ))}
+                        {isLoading && (
+                            <div className="flex items-center space-x-2 text-gray-500">
+                                <div className="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center">
+                                    <i className="fas fa-robot text-red-500"></i>
+                                </div>
+                                <div className="typing-indicator flex space-x-1">
+                                    <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
+                                    <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
+                                    <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
+                                </div>
+                            </div>
+                        )}
+                        <div ref={messagesEndRef} />
+                    </div>
+
+                    {/* Input Form */}
+                    <form onSubmit={handleSubmit} className="p-4 border-t border-gray-200 bg-gray-50 rounded-b-2xl">
+                        <div className="flex space-x-2">
+                            <input 
+                                type="text" 
+                                className="flex-1 border border-gray-300 rounded-full px-4 py-2 focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent" 
+                                placeholder="Type your question..." 
+                                value={inputMessage}
+                                onChange={(e) => setInputMessage(e.target.value)}
+                                disabled={isLoading}
+                            />
+                            <button type="submit" 
+                                className="bg-red-500 text-white px-6 py-2 rounded-full shadow-md hover:bg-red-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center w-14"
+                                disabled={isLoading || !inputMessage.trim()}>
+                                {isLoading ? (
+                                    <i className="fas fa-spinner fa-spin"></i>
+                                ) : (
+                                    <i className="fas fa-paper-plane"></i>
+                                )}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<Chatbot />);
+    </script>
+</body>
+</html>
