@@ -64,3 +64,6 @@ coverage.xml
 # Project specific
 node_modules/
 .pytest_cache/
+
+best_model.pt       # Specifically excluding this large model file
+
